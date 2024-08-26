@@ -1,95 +1,54 @@
-/**
- * Sample React Native App
- * https://github.com/facebook/react-native
- *
- * @format
- */
-
-import React from 'react';
-import type {PropsWithChildren} from 'react';
-import {
-  SafeAreaView,
-  ScrollView,
-  StatusBar,
-  StyleSheet,
-  Text,
-  useColorScheme,
-  View,
-} from 'react-native';
-
-import {
-  Colors,
-  DebugInstructions,
-  Header,
-  LearnMoreLinks,
-  ReloadInstructions,
-} from 'react-native/Libraries/NewAppScreen';
-
-type SectionProps = PropsWithChildren<{
-  title: string;
-}>;
-
-function Section({children, title}: SectionProps): React.JSX.Element {
-  const isDarkMode = useColorScheme() === 'dark';
-  return (
-    <View style={styles.sectionContainer}>
-      <Text
-        style={[
-          styles.sectionTitle,
-          {
-            color: isDarkMode ? Colors.white : Colors.black,
-          },
-        ]}>
-        {title}
-      </Text>
-      <Text
-        style={[
-          styles.sectionDescription,
-          {
-            color: isDarkMode ? Colors.light : Colors.dark,
-          },
-        ]}>
-        {children}
-      </Text>
-    </View>
-  );
-}
+import React, { useState, useEffect } from 'react';
+import { SafeAreaView, ScrollView, StatusBar, StyleSheet, Text, View, Button, Alert } from 'react-native';
 
 function App(): React.JSX.Element {
-  const isDarkMode = useColorScheme() === 'dark';
+  const [files, setFiles] = useState<string[]>([]);
+  const [error, setError] = useState<string | null>(null);
 
-  const backgroundStyle = {
-    backgroundColor: isDarkMode ? Colors.darker : Colors.lighter,
+  const fetchFiles = async () => {
+    try {
+      const response = await fetch('http://192.168.1.43/files'); // Replace with your ESP32 IP address
+      if (!response.ok) {
+        throw new Error('Failed to fetch files');
+      }
+      const data = await response.text();
+      const fileList = data.split('\n').filter(file => file); // Split and filter out empty lines
+      setFiles(fileList);
+    } catch (err: unknown) {
+      if (err instanceof Error) {
+        setError(err.message);
+      } else {
+        setError('An unknown error occurred');
+      }
+    }
   };
 
+  const handlePress = () => {
+    Alert.alert('Button Pressed', 'Fetching files from ESP32...');
+    fetchFiles(); // Fetch the files when the button is pressed
+  };
+
+  useEffect(() => {
+    fetchFiles(); // Fetch the files when the component mounts
+  }, []);
+
   return (
-    <SafeAreaView style={backgroundStyle}>
-      <StatusBar
-        barStyle={isDarkMode ? 'light-content' : 'dark-content'}
-        backgroundColor={backgroundStyle.backgroundColor}
-      />
-      <ScrollView
-        contentInsetAdjustmentBehavior="automatic"
-        style={backgroundStyle}>
-        <Header />
-        <View
-          style={{
-            backgroundColor: isDarkMode ? Colors.black : Colors.white,
-          }}>
-          <Section title="Step One">
-            Edit <Text style={styles.highlight}>App.tsx</Text> to change this
-            screen and then come back to see your edits.
-          </Section>
-          <Section title="See Your Changes">
-            <ReloadInstructions />
-          </Section>
-          <Section title="Debug">
-            <DebugInstructions />
-          </Section>
-          <Section title="Learn More">
-            Read the docs to discover what to do next:
-          </Section>
-          <LearnMoreLinks />
+    <SafeAreaView style={styles.safeArea}>
+      <StatusBar barStyle="dark-content" backgroundColor="rgb(255, 255, 255)" />
+      <ScrollView contentInsetAdjustmentBehavior="automatic" style={styles.background}>
+        <View style={styles.container}>
+          <Text style={styles.title}>Remote MIDI File Manager</Text>
+          <Button title="Fetch Files" onPress={handlePress} />
+          {error && <Text style={styles.error}>{error}</Text>}
+          {files.length > 0 ? (
+            files.map((file, index) => (
+              <Text key={index} style={styles.file}>
+                {file}
+              </Text>
+            ))
+          ) : (
+            <Text style={styles.message}>No files found</Text>
+          )}
         </View>
       </ScrollView>
     </SafeAreaView>
@@ -97,21 +56,39 @@ function App(): React.JSX.Element {
 }
 
 const styles = StyleSheet.create({
-  sectionContainer: {
-    marginTop: 32,
-    paddingHorizontal: 24,
+  safeArea: {
+    flex: 1,
+    backgroundColor: 'rgb(255, 255, 255)', // White background
   },
-  sectionTitle: {
+  background: {
+    backgroundColor: 'rgb(255, 255, 255)', // White background
+  },
+  container: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 16,
+  },
+  title: {
     fontSize: 24,
     fontWeight: '600',
+    color: 'rgb(32, 140, 214)', // Rockbot blue color
+    marginBottom: 20,
   },
-  sectionDescription: {
-    marginTop: 8,
+  file: {
     fontSize: 18,
-    fontWeight: '400',
+    color: 'rgb(32, 140, 214)', // Rockbot blue color
+    marginTop: 10,
   },
-  highlight: {
-    fontWeight: '700',
+  message: {
+    marginTop: 20,
+    fontSize: 18,
+    color: 'rgb(32, 140, 214)', // Rockbot blue color
+  },
+  error: {
+    marginTop: 20,
+    fontSize: 18,
+    color: 'red',
   },
 });
 
