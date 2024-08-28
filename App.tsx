@@ -1,94 +1,83 @@
 import React, { useState, useEffect } from 'react';
-import { SafeAreaView, ScrollView, StatusBar, StyleSheet, Text, View, Button, Alert } from 'react-native';
+import { NavigationContainer } from '@react-navigation/native';
+import { createStackNavigator } from '@react-navigation/stack';
+import { View, StyleSheet, AppState, AppStateStatus } from 'react-native';
+import HomeScreen from './src/screens/HomeScreen';
+import SignupScreen from './src/screens/SignupScreen';
+import LoginScreen from './src/screens/LoginScreen';
+import UserScreen from './src/screens/UserScreen';
+import LoadingScreen from './src/components/LoadingScreen'; // Import your custom LoadingScreen
+
+// Define the navigation parameter list
+export type RootStackParamList = {
+  Home: { error?: boolean };
+  Signup: undefined;
+  Login: undefined;
+  User: undefined;
+};
+
+const Stack = createStackNavigator<RootStackParamList>();
+
+// Constants for simulation
+const IsSimulation = true;
+const TimeoutSim = 2000; // 2 seconds
 
 function App(): React.JSX.Element {
-  const [files, setFiles] = useState<string[]>([]);
-  const [error, setError] = useState<string | null>(null);
-
-  const fetchFiles = async () => {
-    try {
-      const response = await fetch('http://192.168.1.43/files'); // Replace with your ESP32 IP address
-      if (!response.ok) {
-        throw new Error('Failed to fetch files');
-      }
-      const data = await response.text();
-      const fileList = data.split('\n').filter(file => file); // Split and filter out empty lines
-      setFiles(fileList);
-    } catch (err: unknown) {
-      if (err instanceof Error) {
-        setError(err.message);
-      } else {
-        setError('An unknown error occurred');
-      }
-    }
-  };
-
-  const handlePress = () => {
-    Alert.alert('Button Pressed', 'Fetching files from ESP32...');
-    fetchFiles(); // Fetch the files when the button is pressed
-  };
+  const [isLoading, setIsLoading] = useState(true);
+  const [appState, setAppState] = useState<AppStateStatus>(AppState.currentState);
 
   useEffect(() => {
-    fetchFiles(); // Fetch the files when the component mounts
-  }, []);
+    // Show loading screen only on app startup or when returning from background
+    const handleAppStateChange = (nextAppState: AppStateStatus) => {
+      if (
+        (appState.match(/inactive|background/) && nextAppState === 'active') ||
+        (appState === 'unknown' && nextAppState === 'active')
+      ) {
+        // App has returned to foreground or opened initially
+        setIsLoading(true);
+        setTimeout(() => {
+          setIsLoading(false);
+        }, TimeoutSim);
+      }
+      setAppState(nextAppState);
+    };
+
+    // Initial loading screen on app start
+    setTimeout(() => {
+      setIsLoading(false);
+    }, TimeoutSim);
+
+    const subscription = AppState.addEventListener('change', handleAppStateChange);
+
+    return () => {
+      subscription.remove();
+    };
+  }, [appState]);
 
   return (
-    <SafeAreaView style={styles.safeArea}>
-      <StatusBar barStyle="dark-content" backgroundColor="rgb(255, 255, 255)" />
-      <ScrollView contentInsetAdjustmentBehavior="automatic" style={styles.background}>
-        <View style={styles.container}>
-          <Text style={styles.title}>Remote MIDI File Manager</Text>
-          <Button title="Fetch Files" onPress={handlePress} />
-          {error && <Text style={styles.error}>{error}</Text>}
-          {files.length > 0 ? (
-            files.map((file, index) => (
-              <Text key={index} style={styles.file}>
-                {file}
-              </Text>
-            ))
-          ) : (
-            <Text style={styles.message}>No files found</Text>
-          )}
+    <NavigationContainer>
+      {isLoading && (
+        <View style={styles.loadingOverlay}>
+          <LoadingScreen />
         </View>
-      </ScrollView>
-    </SafeAreaView>
+      )}
+      <Stack.Navigator initialRouteName="Home">
+        <Stack.Screen name="Home" component={HomeScreen} />
+        <Stack.Screen name="Signup" component={SignupScreen} />
+        <Stack.Screen name="Login" component={LoginScreen} />
+        <Stack.Screen name="User" component={UserScreen} />
+      </Stack.Navigator>
+    </NavigationContainer>
   );
 }
 
 const styles = StyleSheet.create({
-  safeArea: {
-    flex: 1,
-    backgroundColor: 'rgb(255, 255, 255)', // White background
-  },
-  background: {
-    backgroundColor: 'rgb(255, 255, 255)', // White background
-  },
-  container: {
-    flex: 1,
+  loadingOverlay: {
+    ...StyleSheet.absoluteFillObject,
     justifyContent: 'center',
     alignItems: 'center',
-    padding: 16,
-  },
-  title: {
-    fontSize: 24,
-    fontWeight: '600',
-    color: 'rgb(32, 140, 214)', // Rockbot blue color
-    marginBottom: 20,
-  },
-  file: {
-    fontSize: 18,
-    color: 'rgb(32, 140, 214)', // Rockbot blue color
-    marginTop: 10,
-  },
-  message: {
-    marginTop: 20,
-    fontSize: 18,
-    color: 'rgb(32, 140, 214)', // Rockbot blue color
-  },
-  error: {
-    marginTop: 20,
-    fontSize: 18,
-    color: 'red',
+    backgroundColor: 'rgba(255, 255, 255, 0.8)', // Semi-transparent background
+    zIndex: 10, // Ensure the loading screen is on top
   },
 });
 
