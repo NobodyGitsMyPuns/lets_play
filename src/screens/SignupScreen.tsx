@@ -61,8 +61,8 @@ const styles = StyleSheet.create({
   },
   input: {
     height: 40,
-    borderColor: 'purple',
-    color: 'purple',
+    borderColor: 'black',
+    color: 'black',
     borderWidth: 1,
     marginBottom: 20,
     paddingLeft: 10,
