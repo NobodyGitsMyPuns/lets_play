@@ -10,9 +10,6 @@ function UserScreen(): React.JSX.Element {
   const [espStatus, setEspStatus] = useState<'Reachable' | 'Unreachable'>('Unreachable');
   const [espFiles, setEspFiles] = useState<string[]>([]);
   const [selectedEspFiles, setSelectedEspFiles] = useState<string[]>([]);
-  const [totalSpace, setTotalSpace] = useState('');
-  const [usedSpace, setUsedSpace] = useState('');
-  const [serverFiles, setServerFiles] = useState<string[]>([]);  // Defined serverFiles state
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -40,16 +37,8 @@ function UserScreen(): React.JSX.Element {
         throw new Error('Failed to fetch files');
       }
       const data = await response.text();
-      const lines = data.split('\n').filter(line => line);
-      const fileList = lines.filter(line => !line.startsWith('Total') && !line.startsWith('Used'));
-
+      const fileList = data.split('\n').filter(file => file); // Split and filter out empty lines
       setEspFiles(fileList);
-
-      const totalLine = lines.find(line => line.startsWith('Total'));
-      const usedLine = lines.find(line => line.startsWith('Used'));
-
-      if (totalLine) setTotalSpace(totalLine.replace('Total LittleFS space: ', ''));
-      if (usedLine) setUsedSpace(usedLine.replace('Used: ', ''));
     } catch (err: unknown) {
       if (err instanceof Error) {
         setError(err.message);
@@ -59,49 +48,46 @@ function UserScreen(): React.JSX.Element {
     }
   };
 
-  const fetchServerFiles = async () => {
-    // Placeholder for logic to fetch files from the server
-    // This needs to be implemented based on your server's API
-  };
-
-  const handleFileSelect = (file: string) => {
-    if (selectedEspFiles.includes(file)) {
-      setSelectedEspFiles(selectedEspFiles.filter(f => f !== file));
-    } else {
-      setSelectedEspFiles([...selectedEspFiles, file]);
-    }
+  const toggleFileSelection = (fileName: string) => {
+    setSelectedEspFiles(prevSelected => {
+      if (prevSelected.includes(fileName)) {
+        return prevSelected.filter(file => file !== fileName);
+      } else {
+        return [...prevSelected, fileName];
+      }
+    });
   };
 
   const deleteSelectedFiles = () => {
     Alert.alert(
-      'Delete Files',
-      `Are you sure you want to delete these files: ${selectedEspFiles.join(', ')}?`,
+      "Delete Files",
+      `Are you sure you want to delete the selected files: ${selectedEspFiles.join(', ')}?`,
       [
         {
-          text: 'Cancel',
-          style: 'cancel',
+          text: "Cancel",
+          style: "cancel"
         },
         {
-          text: 'OK',
+          text: "OK",
           onPress: async () => {
-            try {
-              for (const file of selectedEspFiles) {
-                await fetch(`http://${espIpAddress}/delete?name=${encodeURIComponent(file)}`, {
+            for (const file of selectedEspFiles) {
+              try {
+                const response = await fetch(`http://${espIpAddress}/delete`, {
                   method: 'DELETE',
+                  body: new URLSearchParams({ name: file })
                 });
-              }
-              fetchEspFiles(); // Refresh the file list after deletion
-              setSelectedEspFiles([]); // Clear selection
-            } catch (err: unknown) {
-              if (err instanceof Error) {
-                setError(err.message);
-              } else {
-                setError('An unknown error occurred');
+                if (!response.ok) {
+                  throw new Error(`Failed to delete ${file}`);
+                }
+              } catch (err) {
+                Alert.alert('Error', `Failed to delete ${file}`);
               }
             }
-          },
-        },
-      ],
+            // Refresh file list after deletion
+            fetchEspFiles();
+          }
+        }
+      ]
     );
   };
 
@@ -134,8 +120,11 @@ function UserScreen(): React.JSX.Element {
                 espFiles.map((file, index) => (
                   <Text
                     key={index}
-                    style={[styles.fileItem, selectedEspFiles.includes(file) && styles.selectedFileItem]}
-                    onPress={() => handleFileSelect(file)}
+                    style={[
+                      styles.fileItem,
+                      selectedEspFiles.includes(file) && styles.selectedFileItem
+                    ]}
+                    onPress={() => toggleFileSelection(file)}
                   >
                     {file}
                   </Text>
@@ -144,27 +133,7 @@ function UserScreen(): React.JSX.Element {
                 <Text style={styles.noFilesText}>No files found on ESP32</Text>
               )}
             </ScrollView>
-            <Text style={styles.memoryInfo}>Total Space: {totalSpace}</Text>
-            <Text style={styles.memoryInfo}>Used Space: {usedSpace}</Text>
-            <Button
-              title="Delete Selected Files"
-              onPress={deleteSelectedFiles}
-              disabled={selectedEspFiles.length === 0}
-            />
-          </View>
-
-          <View style={styles.submenuContainer}>
-            <Text style={styles.subtitle}>Files on Server</Text>
-            <Button title="Refresh Server Files" onPress={fetchServerFiles} />
-            <ScrollView style={styles.fileList}>
-              {serverFiles.length > 0 ? (
-                serverFiles.map((file, index) => (
-                  <Text key={index} style={styles.fileItem}>{file}</Text>
-                ))
-              ) : (
-                <Text style={styles.noFilesText}>No files found on Server</Text>
-              )}
-            </ScrollView>
+            <Button title="Delete Selected Files" onPress={deleteSelectedFiles} />
           </View>
         </View>
       </SafeAreaView>
@@ -216,48 +185,3 @@ const styles = StyleSheet.create({
     color: 'white',
     borderRadius: 10,
     backgroundColor: '#303030',
-  },
-  submenuContainer: {
-    width: '100%',
-    marginBottom: 20,
-    padding: 15,
-    borderRadius: 10,
-    backgroundColor: '#505050',
-  },
-  subtitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: 'white',
-    marginBottom: 10,
-  },
-  fileList: {
-    maxHeight: 150,
-    borderColor: '#ccc',
-    borderWidth: 1,
-    padding: 10,
-    width: '100%',
-    borderRadius: 10,
-    backgroundColor: '#404040',
-  },
-  fileItem: {
-    fontSize: 16,
-    color: 'white',
-    marginBottom: 5,
-  },
-  selectedFileItem: {
-    backgroundColor: 'rgba(128, 128, 128, 0.5)',
-  },
-  noFilesText: {
-    fontSize: 16,
-    fontStyle: 'italic',
-    color: 'gray',
-    textAlign: 'center',
-  },
-  memoryInfo: {
-    fontSize: 16,
-    color: 'white',
-    marginTop: 10,
-  },
-});
-
-export default UserScreen;
