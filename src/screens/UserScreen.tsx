@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { SafeAreaView, View, Text, TextInput, Button, StyleSheet, ScrollView, Alert } from 'react-native';
 import BackgroundWrapper from '../components/BackgroundWrapper';
+import RNFS from 'react-native-fs';
 
 const DEFAULT_IP = '192.168.1.43';
 const PING_INTERVAL = 5000; // 5 seconds
@@ -10,8 +11,10 @@ function UserScreen(): React.JSX.Element {
   const [espStatus, setEspStatus] = useState<'Reachable' | 'Unreachable'>('Unreachable');
   const [espFiles, setEspFiles] = useState<string[]>([]);
   const [selectedEspFiles, setSelectedEspFiles] = useState<string[]>([]);
-  const [serverFiles, setServerFiles] = useState<string[]>([]);  // Defined serverFiles state
+  const [serverFiles, setServerFiles] = useState<string[]>([]);
+  const [selectedServerFile, setSelectedServerFile] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const SERVER_URL = 'http://34.30.244.244/v1/list-available-midi-files';
 
   useEffect(() => {
     const interval = setInterval(checkEspIp, PING_INTERVAL);
@@ -42,10 +45,6 @@ function UserScreen(): React.JSX.Element {
       const fileList = lines.filter(line => !line.startsWith('Total') && !line.startsWith('Used'));
 
       setEspFiles(fileList);
-
-      const totalLine = lines.find(line => line.startsWith('Total'));
-      const usedLine = lines.find(line => line.startsWith('Used'));
-
     } catch (err: unknown) {
       if (err instanceof Error) {
         setError(err.message);
@@ -56,8 +55,110 @@ function UserScreen(): React.JSX.Element {
   };
 
   const fetchServerFiles = async () => {
-    // Placeholder for logic to fetch files from the server
-    // This needs to be implemented based on your server's API
+    try {
+      const response = await fetch(SERVER_URL);
+      if (!response.ok) {
+        throw new Error('Failed to fetch server files');
+      }
+      const files: string[] = await response.json();
+      const midiFiles = files.filter(file => file.endsWith('.mid')); // Filter only .mid files
+      setServerFiles(midiFiles);
+    } catch (err: unknown) {
+      if (err instanceof Error) {
+        setError(err.message);
+        Alert.alert('Error', err.message);  // Display the error message as an alert
+      } else {
+        setError('An unknown error occurred');
+        Alert.alert('Error', 'An unknown error occurred');  // Display a generic error message as an alert
+      }
+    }
+  };
+
+  const sanitizeFilename = (filename: string) => {
+    // Remove /midi/ prefix if it exists
+    if (filename.startsWith('midi/')) {
+      filename = filename.substring(5);
+    }
+
+    // Remove any extra .mid extensions
+    if (filename.endsWith('.mid.mid')) {
+      filename = filename.substring(0, filename.length - 4);
+    }
+
+    // Replace spaces and %20 with underscores
+    filename = filename.replace(/ /g, '_').replace(/%20/g, '_');
+
+    return filename;
+  };
+
+  const downloadAndUploadFileToEsp = async () => {
+    if (!selectedServerFile) {
+      Alert.alert('Error', 'No file selected to download');
+      return;
+    }
+
+    try {
+      // Step 1: Request the signed URLs from your server
+      const response = await fetch('http://34.30.244.244/v1/get-signed-url', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          objectName: [selectedServerFile],
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to get signed URL');
+      }
+
+      const signedUrls = await response.json();
+      const signedUrlObject = signedUrls.find((item: { objectName: string, signedUrl: string }) => item.objectName === selectedServerFile);
+      const signedUrl = signedUrlObject.signedUrl;
+
+      // Step 2: Sanitize the filename and save to a temporary directory
+      const sanitizedFilename = sanitizeFilename(selectedServerFile);
+      const localFileUri = `${RNFS.TemporaryDirectoryPath}/${sanitizedFilename}`;
+
+      // Step 3: Download the file to the device's local storage
+      const downloadResult = await RNFS.downloadFile({
+        fromUrl: signedUrl,
+        toFile: localFileUri,
+      }).promise;
+
+      if (downloadResult.statusCode !== 200) {
+        throw new Error('Failed to download the file');
+      }
+
+      // Step 4: Upload the file to the ESP32
+      const fileData = await RNFS.readFile(localFileUri, 'base64');
+
+      const espUploadResponse = await fetch(`http://${espIpAddress}/upload?filename=${sanitizedFilename}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/octet-stream',
+        },
+        body: fileData,
+      });
+
+      if (!espUploadResponse.ok) {
+        throw new Error('Failed to upload file to ESP32');
+      }
+
+      Alert.alert('Success', `${signedUrlObject.objectName} downloaded and uploaded to ESP32`);
+
+      // Step 5: Refresh the ESP32 file list after uploading
+      fetchEspFiles();
+    } catch (err: unknown) {
+      if (err instanceof Error) {
+        setError(err.message);
+        Alert.alert('Error', err.message);
+      } else {
+        setError('An unknown error occurred');
+        Alert.alert('Error', 'An unknown error occurred');
+      }
+    }
   };
 
   const handleFileSelect = (file: string) => {
@@ -66,6 +167,10 @@ function UserScreen(): React.JSX.Element {
     } else {
       setSelectedEspFiles([...selectedEspFiles, file]);
     }
+  };
+
+  const handleServerFileSelect = (file: string) => {
+    setSelectedServerFile(file);
   };
 
   const deleteSelectedFiles = () => {
@@ -104,63 +209,76 @@ function UserScreen(): React.JSX.Element {
   return (
     <BackgroundWrapper>
       <SafeAreaView style={styles.safeArea}>
-        <View style={styles.container}>
-          <Text style={styles.title}>Welcome, User!</Text>
+        <ScrollView contentContainerStyle={styles.scrollContainer}>
+          <View style={styles.container}>
+            <Text style={styles.title}>Welcome, User!</Text>
 
-          <View style={styles.statusContainer}>
-            <Text style={[styles.statusText, { color: espStatus === 'Reachable' ? 'green' : 'red' }]}>
-              {`ESP32 Status: ${espStatus}`}
-            </Text>
-            <Button title="Check IP" onPress={checkEspIp} />
-          </View>
+            <View style={styles.statusContainer}>
+              <Text style={[styles.statusText, { color: espStatus === 'Reachable' ? 'green' : 'red' }]}>
+                {`ESP32 Status: ${espStatus}`}
+              </Text>
+              <Button title="Check IP" onPress={checkEspIp} />
+            </View>
 
-          <TextInput
-            placeholder="Enter ESP32 IP Address"
-            placeholderTextColor="gray"
-            value={espIpAddress}
-            onChangeText={setEspIpAddress}
-            style={styles.input}
-          />
-
-          <View style={styles.submenuContainer}>
-            <Text style={styles.subtitle}>Files on ESP32</Text>
-            <Button title="Refresh ESP Files" onPress={fetchEspFiles} />
-            <ScrollView style={styles.fileList}>
-              {espFiles.length > 0 ? (
-                espFiles.map((file, index) => (
-                  <Text
-                    key={index}
-                    style={[styles.fileItem, selectedEspFiles.includes(file) && styles.selectedFileItem]}
-                    onPress={() => handleFileSelect(file)}
-                  >
-                    {file}
-                  </Text>
-                ))
-              ) : (
-                <Text style={styles.noFilesText}>No files found on ESP32</Text>
-              )}
-            </ScrollView>
-            <Button
-              title="Delete Selected Files"
-              onPress={deleteSelectedFiles}
-              disabled={selectedEspFiles.length === 0}
+            <TextInput
+              placeholder="Enter ESP32 IP Address"
+              placeholderTextColor="gray"
+              value={espIpAddress}
+              onChangeText={setEspIpAddress}
+              style={styles.input}
             />
-          </View>
 
-          <View style={styles.submenuContainer}>
-            <Text style={styles.subtitle}>Files on Server</Text>
-            <Button title="Refresh Server Files" onPress={fetchServerFiles} />
-            <ScrollView style={styles.fileList}>
-              {serverFiles.length > 0 ? (
-                serverFiles.map((file, index) => (
-                  <Text key={index} style={styles.fileItem}>{file}</Text>
-                ))
-              ) : (
-                <Text style={styles.noFilesText}>No files found on Server</Text>
-              )}
-            </ScrollView>
+            <View style={styles.submenuContainer}>
+              <Text style={styles.subtitle}>Files on ESP32</Text>
+              <Button title="Refresh ESP Files" onPress={fetchEspFiles} />
+              <ScrollView style={styles.fileList}>
+                {espFiles.length > 0 ? (
+                  espFiles.map((file: string, index: number) => (
+                    <Text
+                      key={index}
+                      style={[styles.fileItem, selectedEspFiles.includes(file) && styles.selectedFileItem]}
+                      onPress={() => handleFileSelect(file)}
+                    >
+                      {file}
+                    </Text>
+                  ))
+                ) : (
+                  <Text style={styles.noFilesText}>No files found on ESP32</Text>
+                )}
+              </ScrollView>
+              <Button
+                title="Delete Selected Files"
+                onPress={deleteSelectedFiles}
+                disabled={selectedEspFiles.length === 0}
+              />
+            </View>
+
+            <View style={styles.submenuContainer}>
+              <Text style={styles.subtitle}>Files on Server</Text>
+              <Button title="Refresh Server Files" onPress={fetchServerFiles} />
+              <ScrollView style={styles.fileList}>
+                {serverFiles.length > 0 ? (
+                  serverFiles.map((file: string, index: number) => (
+                    <Text
+                      key={index}
+                      style={[styles.fileItem, selectedServerFile === file && styles.selectedFileItem]}
+                      onPress={() => handleServerFileSelect(file)}
+                    >
+                      {file}
+                    </Text>
+                  ))
+                ) : (
+                  <Text style={styles.noFilesText}>No files found on Server</Text>
+                )}
+              </ScrollView>
+              <Button
+                title="Download and Upload to ESP32"
+                onPress={downloadAndUploadFileToEsp}
+                disabled={!selectedServerFile}
+              />
+            </View>
           </View>
-        </View>
+        </ScrollView>
       </SafeAreaView>
     </BackgroundWrapper>
   );
@@ -170,6 +288,11 @@ const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
   },
+  scrollContainer: {
+    flexGrow: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
   container: {
     flex: 1,
     justifyContent: 'flex-start',
@@ -178,6 +301,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(38, 38, 38, 0.8)',
     borderRadius: 10,
     margin: 10,
+    width: '100%',
   },
   title: {
     fontSize: 26,
@@ -246,11 +370,6 @@ const styles = StyleSheet.create({
     fontStyle: 'italic',
     color: 'gray',
     textAlign: 'center',
-  },
-  memoryInfo: {
-    fontSize: 16,
-    color: 'white',
-    marginTop: 10,
   },
 });
 
