@@ -1,10 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { SafeAreaView, View, Text, TextInput, Button, StyleSheet, ScrollView, Alert } from 'react-native';
+import { SafeAreaView, View, Text, TextInput, Button, StyleSheet, ScrollView, Alert, TouchableOpacity } from 'react-native';
 import BackgroundWrapper from '../components/BackgroundWrapper';
 import RNFS from 'react-native-fs';
 
 const DEFAULT_IP = '192.168.1.43';
-const PING_INTERVAL = 5000; // 5 seconds
 
 function UserScreen(): React.JSX.Element {
   const [espIpAddress, setEspIpAddress] = useState(DEFAULT_IP);
@@ -15,24 +14,6 @@ function UserScreen(): React.JSX.Element {
   const [selectedServerFile, setSelectedServerFile] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const SERVER_URL = 'http://34.30.244.244/v1/list-available-midi-files';
-
-  useEffect(() => {
-    const interval = setInterval(checkEspIp, PING_INTERVAL);
-    return () => clearInterval(interval); // Clear the interval on component unmount
-  }, [espIpAddress]);
-
-  const checkEspIp = async () => {
-    try {
-      const response = await fetch(`http://${espIpAddress}/check-ip`);
-      if (response.ok) {
-        setEspStatus('Reachable');
-      } else {
-        setEspStatus('Unreachable');
-      }
-    } catch (error) {
-      setEspStatus('Unreachable');
-    }
-  };
 
   const fetchEspFiles = async () => {
     try {
@@ -75,21 +56,20 @@ function UserScreen(): React.JSX.Element {
   };
 
   const sanitizeFilename = (filename: string) => {
-    // Remove /midi/ prefix if it exists
-    if (filename.startsWith('midi/')) {
-      filename = filename.substring(5);
-    }
+    // Remove any instance of /midi/ prefix
+    filename = filename.replace(/^\/?midi\//, ''); // Ensures /midi/ is removed even if it starts with or without leading slash
 
     // Remove any extra .mid extensions
     if (filename.endsWith('.mid.mid')) {
-      filename = filename.substring(0, filename.length - 4);
+        filename = filename.substring(0, filename.length - 4);
     }
 
     // Replace spaces and %20 with underscores
     filename = filename.replace(/ /g, '_').replace(/%20/g, '_');
 
     return filename;
-  };
+};
+
 
   const downloadAndUploadFileToEsp = async () => {
     if (!selectedServerFile) {
@@ -206,19 +186,23 @@ function UserScreen(): React.JSX.Element {
     );
   };
 
+  const truncateFilename = (filename: string, maxLength: number) => {
+    if (filename.length > maxLength) {
+      return filename.substring(0, maxLength) + '...';
+    }
+    return filename;
+  };
+
+  const handleLongPress = (filename: string) => {
+    Alert.alert('Full Filename', filename);
+  };
+
   return (
     <BackgroundWrapper>
       <SafeAreaView style={styles.safeArea}>
         <ScrollView contentContainerStyle={styles.scrollContainer}>
           <View style={styles.container}>
             <Text style={styles.title}>Welcome, User!</Text>
-
-            <View style={styles.statusContainer}>
-              <Text style={[styles.statusText, { color: espStatus === 'Reachable' ? 'green' : 'red' }]}>
-                {`ESP32 Status: ${espStatus}`}
-              </Text>
-              <Button title="Check IP" onPress={checkEspIp} />
-            </View>
 
             <TextInput
               placeholder="Enter ESP32 IP Address"
@@ -234,13 +218,20 @@ function UserScreen(): React.JSX.Element {
               <ScrollView style={styles.fileList}>
                 {espFiles.length > 0 ? (
                   espFiles.map((file: string, index: number) => (
-                    <Text
+                    <TouchableOpacity
                       key={index}
-                      style={[styles.fileItem, selectedEspFiles.includes(file) && styles.selectedFileItem]}
+                      onLongPress={() => handleLongPress(file)}
                       onPress={() => handleFileSelect(file)}
                     >
-                      {file}
-                    </Text>
+                      <Text
+                        style={[
+                          styles.fileItem,
+                          selectedEspFiles.includes(file) && styles.selectedFileItem,
+                        ]}
+                      >
+                        {truncateFilename(file, 25)}
+                      </Text>
+                    </TouchableOpacity>
                   ))
                 ) : (
                   <Text style={styles.noFilesText}>No files found on ESP32</Text>
@@ -259,13 +250,20 @@ function UserScreen(): React.JSX.Element {
               <ScrollView style={styles.fileList}>
                 {serverFiles.length > 0 ? (
                   serverFiles.map((file: string, index: number) => (
-                    <Text
+                    <TouchableOpacity
                       key={index}
-                      style={[styles.fileItem, selectedServerFile === file && styles.selectedFileItem]}
+                      onLongPress={() => handleLongPress(file)}
                       onPress={() => handleServerFileSelect(file)}
                     >
-                      {file}
-                    </Text>
+                      <Text
+                        style={[
+                          styles.fileItem,
+                          selectedServerFile === file && styles.selectedFileItem,
+                        ]}
+                      >
+                        {truncateFilename(file, 25)}
+                      </Text>
+                    </TouchableOpacity>
                   ))
                 ) : (
                   <Text style={styles.noFilesText}>No files found on Server</Text>
