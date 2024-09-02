@@ -20,11 +20,11 @@ function SignupScreen({ navigation }: SignupScreenProps): React.JSX.Element {
   const [password, setPassword] = useState('');
   const [otp, setOtp] = useState('');
   const [serialNumber, setSerialNumber] = useState('');
-  const espIpAddress = '192.168.1.43'; // Your ESP32 IP address
+  const default_ip = '192.168.1.43'; // Your ESP32 IP address
 
   const handleGetOtpSn = async () => {
     try {
-      const response = await fetch(`http://${espIpAddress}/get-otp-sn`);
+      const response = await fetch(`http://${default_ip}/get-otp-sn`);
       if (!response.ok) {
         throw new Error('Failed to get S/N and OTP from ESP32');
       }

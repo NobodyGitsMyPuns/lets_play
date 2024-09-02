@@ -3,11 +3,9 @@ import { SafeAreaView, View, Text, TextInput, Button, StyleSheet, ScrollView, Al
 import BackgroundWrapper from '../components/BackgroundWrapper';
 import RNFS from 'react-native-fs';
 
-const DEFAULT_IP = '192.168.1.43';
+const default_ip = '192.168.1.43';
 
 function UserScreen(): React.JSX.Element {
-  const [espIpAddress, setEspIpAddress] = useState(DEFAULT_IP);
-  const [espStatus, setEspStatus] = useState<'Reachable' | 'Unreachable'>('Unreachable');
   const [espFiles, setEspFiles] = useState<string[]>([]);
   const [selectedEspFiles, setSelectedEspFiles] = useState<string[]>([]);
   const [serverFiles, setServerFiles] = useState<string[]>([]);
@@ -17,7 +15,7 @@ function UserScreen(): React.JSX.Element {
 
   const fetchEspFiles = async () => {
     try {
-      const response = await fetch(`http://${espIpAddress}/files`);
+      const response = await fetch(`http://${default_ip}/files`);
       if (!response.ok) {
         throw new Error('Failed to fetch files');
       }
@@ -71,75 +69,85 @@ function UserScreen(): React.JSX.Element {
 };
 
 
-  const downloadAndUploadFileToEsp = async () => {
-    if (!selectedServerFile) {
-      Alert.alert('Error', 'No file selected to download');
-      return;
+const downloadAndUploadFileToEsp = async () => {
+  if (!selectedServerFile) {
+    Alert.alert('Error', 'No file selected to download');
+    return;
+  }
+
+  try {
+    console.log('Starting download and upload process for:', selectedServerFile);
+
+    // Step 1: Request the signed URLs from your server
+    const response = await fetch('http://34.30.244.244/v1/get-signed-url', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        objectName: [selectedServerFile],
+      }),
+    });
+
+    if (!response.ok) {
+      throw new Error('Failed to get signed URL');
     }
 
-    try {
-      // Step 1: Request the signed URLs from your server
-      const response = await fetch('http://34.30.244.244/v1/get-signed-url', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          objectName: [selectedServerFile],
-        }),
-      });
+    const signedUrls = await response.json();
+    const signedUrlObject = signedUrls.find((item: { objectName: string, signedUrl: string }) => item.objectName === selectedServerFile);
+    const signedUrl = signedUrlObject.signedUrl;
 
-      if (!response.ok) {
-        throw new Error('Failed to get signed URL');
-      }
+    console.log('Signed URL:', signedUrl);
 
-      const signedUrls = await response.json();
-      const signedUrlObject = signedUrls.find((item: { objectName: string, signedUrl: string }) => item.objectName === selectedServerFile);
-      const signedUrl = signedUrlObject.signedUrl;
+    // Step 2: Sanitize the filename and save to a temporary directory
+    const sanitizedFilename = sanitizeFilename(selectedServerFile);
+    const localFileUri = `${RNFS.TemporaryDirectoryPath}/${sanitizedFilename}`;
 
-      // Step 2: Sanitize the filename and save to a temporary directory
-      const sanitizedFilename = sanitizeFilename(selectedServerFile);
-      const localFileUri = `${RNFS.TemporaryDirectoryPath}/${sanitizedFilename}`;
+    // Step 3: Download the file to the device's local storage
+    const downloadResult = await RNFS.downloadFile({
+      fromUrl: signedUrl,
+      toFile: localFileUri,
+    }).promise;
 
-      // Step 3: Download the file to the device's local storage
-      const downloadResult = await RNFS.downloadFile({
-        fromUrl: signedUrl,
-        toFile: localFileUri,
-      }).promise;
-
-      if (downloadResult.statusCode !== 200) {
-        throw new Error('Failed to download the file');
-      }
-
-      // Step 4: Upload the file to the ESP32
-      const fileData = await RNFS.readFile(localFileUri, 'base64');
-
-      const espUploadResponse = await fetch(`http://${espIpAddress}/upload?filename=${sanitizedFilename}`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/octet-stream',
-        },
-        body: fileData,
-      });
-
-      if (!espUploadResponse.ok) {
-        throw new Error('Failed to upload file to ESP32');
-      }
-
-      Alert.alert('Success', `${signedUrlObject.objectName} downloaded and uploaded to ESP32`);
-
-      // Step 5: Refresh the ESP32 file list after uploading
-      fetchEspFiles();
-    } catch (err: unknown) {
-      if (err instanceof Error) {
-        setError(err.message);
-        Alert.alert('Error', err.message);
-      } else {
-        setError('An unknown error occurred');
-        Alert.alert('Error', 'An unknown error occurred');
-      }
+    if (downloadResult.statusCode !== 200) {
+      throw new Error('Failed to download the file');
     }
-  };
+
+    console.log('File downloaded successfully:', localFileUri);
+
+    // Step 4: Upload the file to the ESP32
+    const fileData = await RNFS.readFile(localFileUri, 'base64');
+
+    console.log('File data ready for upload:', fileData.slice(0, 100)); // Show a preview of the data
+
+    const espUploadResponse = await fetch(`http://${default_ip}/upload?filename=${sanitizedFilename}`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/octet-stream',
+      },
+      body: fileData,
+    });
+
+    if (!espUploadResponse.ok) {
+      throw new Error('Failed to upload file to ESP32');
+    }
+
+    Alert.alert('Success', `${signedUrlObject.objectName} downloaded and uploaded to ESP32`);
+
+    // Step 5: Refresh the ESP32 file list after uploading
+    fetchEspFiles();
+  } catch (err: unknown) {
+    console.error('Error during upload:', err);
+    if (err instanceof Error) {
+      setError(err.message);
+      Alert.alert('Error', err.message);
+    } else {
+      setError('An unknown error occurred');
+      Alert.alert('Error', 'An unknown error occurred');
+    }
+  }
+};
+
 
   const handleFileSelect = (file: string) => {
     if (selectedEspFiles.includes(file)) {
@@ -167,7 +175,7 @@ function UserScreen(): React.JSX.Element {
           onPress: async () => {
             try {
               for (const file of selectedEspFiles) {
-                await fetch(`http://${espIpAddress}/delete?name=${encodeURIComponent(file)}`, {
+                await fetch(`http://${default_ip}/delete?name=${encodeURIComponent(file)}`, {
                   method: 'DELETE',
                 });
               }
@@ -204,13 +212,6 @@ function UserScreen(): React.JSX.Element {
           <View style={styles.container}>
             <Text style={styles.title}>Welcome, User!</Text>
 
-            <TextInput
-              placeholder="Enter ESP32 IP Address"
-              placeholderTextColor="gray"
-              value={espIpAddress}
-              onChangeText={setEspIpAddress}
-              style={styles.input}
-            />
 
             <View style={styles.submenuContainer}>
               <Text style={styles.subtitle}>Files on ESP32</Text>
