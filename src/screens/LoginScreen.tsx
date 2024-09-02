@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
-import { SafeAreaView, View, TextInput, Button, StyleSheet } from 'react-native';
+import { SafeAreaView, View, TextInput, Button, StyleSheet, Alert } from 'react-native';
 import { StackNavigationProp } from '@react-navigation/stack';
-import { useNavigation } from '@react-navigation/native';
 import BackgroundWrapper from '../components/BackgroundWrapper';
 
 type RootStackParamList = {
@@ -20,11 +19,35 @@ function LoginScreen({ navigation }: LoginScreenProps): React.JSX.Element {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
 
-  const handleLogin = () => {
-    if (username === 'User' && password === 'password') {
-      navigation.navigate('User');
-    } else {
+  const handleLogin = async () => {
+    try {
+      const response = await fetch('http://34.30.244.244/v1/login', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          username: username,
+          password: password,
+        }),
+      });
+
+      const responseBody = await response.json();
+
+      if (response.status === 200) {
+        Alert.alert('Success', 'Login successful');
+        navigation.navigate('User');
+      } else {
+        Alert.alert('Error', responseBody.message || 'Invalid username or password');
+        navigation.navigate('Home', { error: true });
+      }
+    } catch (error) {
+      Alert.alert('Error', 'Network error, please try again');
       navigation.navigate('Home', { error: true });
+    } finally {
+      // Clear the textboxes
+      setUsername('');
+      setPassword('');
     }
   };
 
@@ -45,7 +68,7 @@ function LoginScreen({ navigation }: LoginScreenProps): React.JSX.Element {
             secureTextEntry
             style={styles.input}
           />
-          <Button title="Login"  onPress={handleLogin}  />
+          <Button title="Login" onPress={handleLogin} />
         </View>
       </SafeAreaView>
     </BackgroundWrapper>
