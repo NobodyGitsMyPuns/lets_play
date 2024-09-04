@@ -48,7 +48,7 @@ rebuild: clean install
 reinstall-pod: 
 	@echo "Rebuilding the project from scratch..."
 	cd ios && pod install && cd ..
-    npx react-native run-ios
+	npx react-native run-ios
 	$(MAKE) run-ios
 
 .PHONY: open-xcode
