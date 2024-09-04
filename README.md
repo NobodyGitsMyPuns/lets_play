@@ -229,3 +229,41 @@ npm install react-native-linear-gradient
 
 
 ## Troubleshooting
+
+Rebuild
+pod repo update
+pod install
+react-native run-ios
+or
+cd ios
+pod install
+cd ..
+npx react-native run-ios
+
+
+### SCOPE
+NSAllowsArbitraryLoads for scope sticking with http however We would need to change that to "avoid app rejection" when modifying info.plist for IOS. It seems the solution here is to simply move to https for the server's API
+
+
+# if changing manifest
+
+
+make simple-clean-and-deploy is not as destructive and works for most dev
+xcodebuild clean
+cd ios
+pod install
+cd ..
+npx react-native run-ios
+
+
+npm install react-native-fs
+npm install react-native-dns
+yarn add react-native-ping
+**After minimal changes, to run do the following from the midi-file-server root folder:**
+
+ ```bash
+        cd ios
+        pod install
+        cd ..
+        npx react-native run-ios
+```

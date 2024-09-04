@@ -16,7 +16,7 @@ function HomeScreen({ navigation }: { navigation: any }): React.JSX.Element {
 
   const fetchFiles = async () => {
     try {
-      const response = await fetch('http://192.168.1.43/files'); // Replace with your ESP32 IP address
+      const response = await fetch('http://${default_ip}/files'); // Replace with your ESP32 IP address
       if (!response.ok) {
         throw new Error('Failed to fetch files');
       }
