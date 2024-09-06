@@ -1,7 +1,16 @@
-import React, { useState, useEffect } from 'react';
-import { SafeAreaView, ScrollView, StatusBar, StyleSheet, Text, View, Button, Alert } from 'react-native';
-import { NavigationContainer } from '@react-navigation/native';
-import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import React, {useState, useEffect} from 'react';
+import {
+  SafeAreaView,
+  ScrollView,
+  StatusBar,
+  StyleSheet,
+  Text,
+  View,
+  Button,
+  Alert,
+} from 'react-native';
+import {NavigationContainer} from '@react-navigation/native';
+import {createNativeStackNavigator} from '@react-navigation/native-stack';
 
 type RootStackParamList = {
   Home: undefined;
@@ -10,7 +19,7 @@ type RootStackParamList = {
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
-function HomeScreen({ navigation }: { navigation: any }): React.JSX.Element {
+function HomeScreen({navigation}: {navigation: any}): React.JSX.Element {
   const [files, setFiles] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
 
@@ -44,11 +53,16 @@ function HomeScreen({ navigation }: { navigation: any }): React.JSX.Element {
   return (
     <SafeAreaView style={styles.safeArea}>
       <StatusBar barStyle="dark-content" backgroundColor="rgb(255, 255, 255)" />
-      <ScrollView contentInsetAdjustmentBehavior="automatic" style={styles.background}>
+      <ScrollView
+        contentInsetAdjustmentBehavior="automatic"
+        style={styles.background}>
         <View style={styles.container}>
           <Text style={styles.title}>Remote MIDI File Manager</Text>
           <Button title="Fetch Files" onPress={handlePress} />
-          <Button title="Go to View 2" onPress={() => navigation.navigate('View2')} />
+          <Button
+            title="Go to View 2"
+            onPress={() => navigation.navigate('View2')}
+          />
           {error && <Text style={styles.error}>{error}</Text>}
           {files.length > 0 ? (
             files.map((file, index) => (
@@ -67,9 +81,8 @@ function HomeScreen({ navigation }: { navigation: any }): React.JSX.Element {
 
 function View2Screen(): React.JSX.Element {
   return (
-    <SafeAreaView style={styles.safeArea} >
+    <SafeAreaView style={styles.safeArea}>
       <View style={styles.container}>
-        
         <Text style={styles.title}>Welcome to View 2</Text>
       </View>
     </SafeAreaView>
@@ -96,15 +109,14 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgb(100,100,100)', // White background
   },
   backgroundBlue: {
-    backgroundColor: "rgba(38,76,110)"
+    backgroundColor: 'rgba(38,76,110)',
   },
   container: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
     padding: 16,
-    backgroundColor:"rgba(38,76,110,1)",
-    
+    backgroundColor: 'rgba(38,76,110,1)',
   },
   title: {
     fontSize: 24,

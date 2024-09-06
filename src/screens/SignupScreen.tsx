@@ -1,21 +1,31 @@
-import React, { useState } from 'react';
-import { SafeAreaView, View, TextInput, Button, StyleSheet, Alert } from 'react-native';
-import { StackNavigationProp } from '@react-navigation/stack';
+import React, {useState} from 'react';
+import {
+  SafeAreaView,
+  View,
+  TextInput,
+  Button,
+  StyleSheet,
+  Alert,
+} from 'react-native';
+import {StackNavigationProp} from '@react-navigation/stack';
 import BackgroundWrapper from '../components/BackgroundWrapper';
 
 type RootStackParamList = {
   Signup: undefined;
   Login: undefined;
-  Home: { error?: boolean };
+  Home: {error?: boolean};
 };
 
-type SignupScreenNavigationProp = StackNavigationProp<RootStackParamList, 'Signup'>;
+type SignupScreenNavigationProp = StackNavigationProp<
+  RootStackParamList,
+  'Signup'
+>;
 
 type SignupScreenProps = {
   navigation: SignupScreenNavigationProp;
 };
 
-function SignupScreen({ navigation }: SignupScreenProps): React.JSX.Element {
+function SignupScreen({navigation}: SignupScreenProps): React.JSX.Element {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [otp, setOtp] = useState('');
@@ -58,17 +68,17 @@ function SignupScreen({ navigation }: SignupScreenProps): React.JSX.Element {
         navigation.navigate('Login');
       } else if (response.status === 409) {
         Alert.alert('Error', 'Username already taken');
-        navigation.navigate('Home', { error: true });
+        navigation.navigate('Home', {error: true});
       } else if (response.status === 401) {
         Alert.alert('Error', 'Invalid OTP or Serial Number');
-        navigation.navigate('Home', { error: true });
+        navigation.navigate('Home', {error: true});
       } else {
         Alert.alert('Error', 'Something went wrong, please try again');
-        navigation.navigate('Home', { error: true });
+        navigation.navigate('Home', {error: true});
       }
     } catch (error) {
       Alert.alert('Error', 'Network error, please try again');
-      navigation.navigate('Home', { error: true });
+      navigation.navigate('Home', {error: true});
     }
   };
 

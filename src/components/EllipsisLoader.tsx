@@ -1,5 +1,5 @@
-import React, { useEffect, useRef } from 'react';
-import { Animated, View, StyleSheet } from 'react-native';
+import React, {useEffect, useRef} from 'react';
+import {Animated, View, StyleSheet} from 'react-native';
 
 const EllipsisLoader: React.FC = () => {
   const dot1 = useRef(new Animated.Value(0)).current;
@@ -33,9 +33,9 @@ const EllipsisLoader: React.FC = () => {
 
   return (
     <View style={styles.ellipsisContainer}>
-      <Animated.Text style={[styles.dot, { opacity: dot1 }]}>.</Animated.Text>
-      <Animated.Text style={[styles.dot, { opacity: dot2 }]}>.</Animated.Text>
-      <Animated.Text style={[styles.dot, { opacity: dot3 }]}>.</Animated.Text>
+      <Animated.Text style={[styles.dot, {opacity: dot1}]}>.</Animated.Text>
+      <Animated.Text style={[styles.dot, {opacity: dot2}]}>.</Animated.Text>
+      <Animated.Text style={[styles.dot, {opacity: dot3}]}>.</Animated.Text>
     </View>
   );
 };

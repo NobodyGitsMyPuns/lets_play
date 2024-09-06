@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from 'react';
-import { NavigationContainer } from '@react-navigation/native';
-import { createStackNavigator } from '@react-navigation/stack';
-import { View, StyleSheet, AppState, AppStateStatus } from 'react-native';
+import React, {useState, useEffect} from 'react';
+import {NavigationContainer} from '@react-navigation/native';
+import {createStackNavigator} from '@react-navigation/stack';
+import {View, StyleSheet, AppState, AppStateStatus} from 'react-native';
 import HomeScreen from './src/screens/HomeScreen';
 import SignupScreen from './src/screens/SignupScreen';
 import LoginScreen from './src/screens/LoginScreen';
@@ -10,7 +10,7 @@ import LoadingScreen from './src/components/LoadingScreen'; // Import your custo
 
 // Define the navigation parameter list
 export type RootStackParamList = {
-  Home: { error?: boolean };
+  Home: {error?: boolean};
   Signup: undefined;
   Login: undefined;
   User: undefined;
@@ -18,13 +18,13 @@ export type RootStackParamList = {
 
 const Stack = createStackNavigator<RootStackParamList>();
 
-// Constants for simulation
-const IsSimulation = true;
 const TimeoutSim = 2000; // 2 seconds
 
 function App(): React.JSX.Element {
   const [isLoading, setIsLoading] = useState(true);
-  const [appState, setAppState] = useState<AppStateStatus>(AppState.currentState);
+  const [appState, setAppState] = useState<AppStateStatus>(
+    AppState.currentState,
+  );
 
   useEffect(() => {
     // Show loading screen only on app startup or when returning from background
@@ -47,7 +47,10 @@ function App(): React.JSX.Element {
       setIsLoading(false);
     }, TimeoutSim);
 
-    const subscription = AppState.addEventListener('change', handleAppStateChange);
+    const subscription = AppState.addEventListener(
+      'change',
+      handleAppStateChange,
+    );
 
     return () => {
       subscription.remove();

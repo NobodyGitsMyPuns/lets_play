@@ -1,21 +1,31 @@
-import React, { useState } from 'react';
-import { SafeAreaView, View, TextInput, Button, StyleSheet, Alert } from 'react-native';
-import { StackNavigationProp } from '@react-navigation/stack';
+import React, {useState} from 'react';
+import {
+  SafeAreaView,
+  View,
+  TextInput,
+  Button,
+  StyleSheet,
+  Alert,
+} from 'react-native';
+import {StackNavigationProp} from '@react-navigation/stack';
 import BackgroundWrapper from '../components/BackgroundWrapper';
 
 type RootStackParamList = {
   Login: undefined;
-  Home: { error?: boolean };
+  Home: {error?: boolean};
   User: undefined;
 };
 
-type LoginScreenNavigationProp = StackNavigationProp<RootStackParamList, 'Login'>;
+type LoginScreenNavigationProp = StackNavigationProp<
+  RootStackParamList,
+  'Login'
+>;
 
 type LoginScreenProps = {
   navigation: LoginScreenNavigationProp;
 };
 
-function LoginScreen({ navigation }: LoginScreenProps): React.JSX.Element {
+function LoginScreen({navigation}: LoginScreenProps): React.JSX.Element {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
 
@@ -38,12 +48,15 @@ function LoginScreen({ navigation }: LoginScreenProps): React.JSX.Element {
         Alert.alert('Success', 'Login successful');
         navigation.navigate('User');
       } else {
-        Alert.alert('Error', responseBody.message || 'Invalid username or password');
-        navigation.navigate('Home', { error: true });
+        Alert.alert(
+          'Error',
+          responseBody.message || 'Invalid username or password',
+        );
+        navigation.navigate('Home', {error: true});
       }
     } catch (error) {
       Alert.alert('Error', 'Network error, please try again');
-      navigation.navigate('Home', { error: true });
+      navigation.navigate('Home', {error: true});
     } finally {
       // Clear the textboxes
       setUsername('');

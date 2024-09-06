@@ -1,13 +1,11 @@
 import React from 'react';
-import { SafeAreaView, View, Button, Text, StyleSheet } from 'react-native';
-import { StackNavigationProp } from '@react-navigation/stack';
-import { RouteProp } from '@react-navigation/native';
-import { RootStackParamList } from '../../App';
+import {SafeAreaView, View, Button, Text, StyleSheet} from 'react-native';
+import {StackNavigationProp} from '@react-navigation/stack';
+import {RouteProp} from '@react-navigation/native';
+import {RootStackParamList} from '../../App';
 import BackgroundWrapper from '../components/BackgroundWrapper';
 
- // Adjust the path based on where your App.tsx is located
-
-
+// Adjust the path based on where your App.tsx is located
 
 type HomeScreenNavigationProp = StackNavigationProp<RootStackParamList, 'Home'>;
 type HomeScreenRouteProp = RouteProp<RootStackParamList, 'Home'>;
@@ -17,18 +15,23 @@ type HomeScreenProps = {
   route: HomeScreenRouteProp;
 };
 
-const HomeScreen: React.FC<HomeScreenProps> = ({ navigation, route }) => {
+const HomeScreen: React.FC<HomeScreenProps> = ({navigation, route}) => {
   return (
     <BackgroundWrapper>
-    <SafeAreaView style={styles.safeArea}>
-      <View style={styles.container}>
-        {route.params?.error && (
-          <Text style={styles.errorText}>Failed logging in. Please try again.</Text>
-        )}
-        <Button title="Sign Up" onPress={() => navigation.navigate('Signup')} />
-        <Button title="Login" onPress={() => navigation.navigate('Login')} />
-      </View>
-    </SafeAreaView>
+      <SafeAreaView style={styles.safeArea}>
+        <View style={styles.container}>
+          {route.params?.error && (
+            <Text style={styles.errorText}>
+              Failed logging in. Please try again.
+            </Text>
+          )}
+          <Button
+            title="Sign Up"
+            onPress={() => navigation.navigate('Signup')}
+          />
+          <Button title="Login" onPress={() => navigation.navigate('Login')} />
+        </View>
+      </SafeAreaView>
     </BackgroundWrapper>
   );
 };

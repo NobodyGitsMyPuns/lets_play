@@ -1,19 +1,16 @@
 import React from 'react';
-import { ImageBackground, StyleSheet, View } from 'react-native';
+import {ImageBackground, StyleSheet, View} from 'react-native';
 
 type BackgroundWrapperProps = {
   children: React.ReactNode;
 };
 
-const BackgroundWrapper: React.FC<BackgroundWrapperProps> = ({ children }) => {
+const BackgroundWrapper: React.FC<BackgroundWrapperProps> = ({children}) => {
   return (
     <ImageBackground
-      source={require('./abstract.jpg')} 
-      style={styles.background}
-    >
-      <View style={styles.overlay}>
-        {children}
-      </View>
+      source={require('./abstract.jpg')}
+      style={styles.background}>
+      <View style={styles.overlay}>{children}</View>
     </ImageBackground>
   );
 };

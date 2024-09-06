@@ -1,5 +1,14 @@
-import React, { useState, useEffect } from 'react';
-import { SafeAreaView, View, Text, TextInput, Button, StyleSheet, ScrollView, Alert, TouchableOpacity } from 'react-native';
+import React, {useState} from 'react';
+import {
+  SafeAreaView,
+  View,
+  Text,
+  Button,
+  StyleSheet,
+  ScrollView,
+  Alert,
+  TouchableOpacity,
+} from 'react-native';
 import BackgroundWrapper from '../components/BackgroundWrapper';
 import RNFS from 'react-native-fs';
 
@@ -9,8 +18,10 @@ function UserScreen(): React.JSX.Element {
   const [espFiles, setEspFiles] = useState<string[]>([]);
   const [selectedEspFiles, setSelectedEspFiles] = useState<string[]>([]);
   const [serverFiles, setServerFiles] = useState<string[]>([]);
-  const [selectedServerFile, setSelectedServerFile] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const [selectedServerFile, setSelectedServerFile] = useState<string | null>(
+    null,
+  );
+  const [setError] = useState<string | null>(null);
   const SERVER_URL = 'http://34.30.244.244/v1/list-available-midi-files';
 
   const fetchEspFiles = async () => {
@@ -21,7 +32,9 @@ function UserScreen(): React.JSX.Element {
       }
       const data = await response.text();
       const lines = data.split('\n').filter(line => line);
-      const fileList = lines.filter(line => !line.startsWith('Total') && !line.startsWith('Used'));
+      const fileList = lines.filter(
+        line => !line.startsWith('Total') && !line.startsWith('Used'),
+      );
 
       setEspFiles(fileList);
     } catch (err: unknown) {
@@ -45,10 +58,10 @@ function UserScreen(): React.JSX.Element {
     } catch (err: unknown) {
       if (err instanceof Error) {
         setError(err.message);
-        Alert.alert('Error', err.message);  // Display the error message as an alert
+        Alert.alert('Error', err.message); // Display the error message as an alert
       } else {
         setError('An unknown error occurred');
-        Alert.alert('Error', 'An unknown error occurred');  // Display a generic error message as an alert
+        Alert.alert('Error', 'An unknown error occurred'); // Display a generic error message as an alert
       }
     }
   };
@@ -59,95 +72,105 @@ function UserScreen(): React.JSX.Element {
 
     // Remove any extra .mid extensions
     if (filename.endsWith('.mid.mid')) {
-        filename = filename.substring(0, filename.length - 4);
+      filename = filename.substring(0, filename.length - 4);
     }
 
     // Replace spaces and %20 with underscores
     filename = filename.replace(/ /g, '_').replace(/%20/g, '_');
 
     return filename;
-};
+  };
 
-
-const downloadAndUploadFileToEsp = async () => {
-  if (!selectedServerFile) {
-    Alert.alert('Error', 'No file selected to download');
-    return;
-  }
-
-  try {
-    console.log('Starting download and upload process for:', selectedServerFile);
-
-    // Step 1: Request the signed URLs from your server
-    const response = await fetch('http://34.30.244.244/v1/get-signed-url', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        objectName: [selectedServerFile],
-      }),
-    });
-
-    if (!response.ok) {
-      throw new Error('Failed to get signed URL');
+  const downloadAndUploadFileToEsp = async () => {
+    if (!selectedServerFile) {
+      Alert.alert('Error', 'No file selected to download');
+      return;
     }
 
-    const signedUrls = await response.json();
-    const signedUrlObject = signedUrls.find((item: { objectName: string, signedUrl: string }) => item.objectName === selectedServerFile);
-    const signedUrl = signedUrlObject.signedUrl;
+    try {
+      console.log(
+        'Starting download and upload process for:',
+        selectedServerFile,
+      );
 
-    console.log('Signed URL:', signedUrl);
+      // Step 1: Request the signed URLs from your server
+      const response = await fetch('http://34.30.244.244/v1/get-signed-url', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          objectName: [selectedServerFile],
+        }),
+      });
 
-    // Step 2: Sanitize the filename and save to a temporary directory
-    const sanitizedFilename = sanitizeFilename(selectedServerFile);
-    const localFileUri = `${RNFS.TemporaryDirectoryPath}/${sanitizedFilename}`;
+      if (!response.ok) {
+        throw new Error('Failed to get signed URL');
+      }
 
-    // Step 3: Download the file to the device's local storage
-    const downloadResult = await RNFS.downloadFile({
-      fromUrl: signedUrl,
-      toFile: localFileUri,
-    }).promise;
+      const signedUrls = await response.json();
+      const signedUrlObject = signedUrls.find(
+        (item: {objectName: string; signedUrl: string}) =>
+          item.objectName === selectedServerFile,
+      );
+      const signedUrl = signedUrlObject.signedUrl;
 
-    if (downloadResult.statusCode !== 200) {
-      throw new Error('Failed to download the file');
+      console.log('Signed URL:', signedUrl);
+
+      // Step 2: Sanitize the filename and save to a temporary directory
+      const sanitizedFilename = sanitizeFilename(selectedServerFile);
+      const localFileUri = `${RNFS.TemporaryDirectoryPath}/${sanitizedFilename}`;
+
+      // Step 3: Download the file to the device's local storage
+      const downloadResult = await RNFS.downloadFile({
+        fromUrl: signedUrl,
+        toFile: localFileUri,
+      }).promise;
+
+      if (downloadResult.statusCode !== 200) {
+        throw new Error('Failed to download the file');
+      }
+
+      console.log('File downloaded successfully:', localFileUri);
+
+      // Step 4: Upload the file to the ESP32
+      const fileData = await RNFS.readFile(localFileUri, 'base64');
+
+      console.log('File data ready for upload:', fileData.slice(0, 100)); // Show a preview of the data
+
+      const espUploadResponse = await fetch(
+        `http://${default_ip}/upload?filename=${sanitizedFilename}`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/octet-stream',
+          },
+          body: fileData,
+        },
+      );
+
+      if (!espUploadResponse.ok) {
+        throw new Error('Failed to upload file to ESP32');
+      }
+
+      Alert.alert(
+        'Success',
+        `${signedUrlObject.objectName} downloaded and uploaded to ESP32`,
+      );
+
+      // Step 5: Refresh the ESP32 file list after uploading
+      fetchEspFiles();
+    } catch (err: unknown) {
+      console.error('Error during upload:', err);
+      if (err instanceof Error) {
+        setError(err.message);
+        Alert.alert('Error', err.message);
+      } else {
+        setError('An unknown error occurred');
+        Alert.alert('Error', 'An unknown error occurred');
+      }
     }
-
-    console.log('File downloaded successfully:', localFileUri);
-
-    // Step 4: Upload the file to the ESP32
-    const fileData = await RNFS.readFile(localFileUri, 'base64');
-
-    console.log('File data ready for upload:', fileData.slice(0, 100)); // Show a preview of the data
-
-    const espUploadResponse = await fetch(`http://${default_ip}/upload?filename=${sanitizedFilename}`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/octet-stream',
-      },
-      body: fileData,
-    });
-
-    if (!espUploadResponse.ok) {
-      throw new Error('Failed to upload file to ESP32');
-    }
-
-    Alert.alert('Success', `${signedUrlObject.objectName} downloaded and uploaded to ESP32`);
-
-    // Step 5: Refresh the ESP32 file list after uploading
-    fetchEspFiles();
-  } catch (err: unknown) {
-    console.error('Error during upload:', err);
-    if (err instanceof Error) {
-      setError(err.message);
-      Alert.alert('Error', err.message);
-    } else {
-      setError('An unknown error occurred');
-      Alert.alert('Error', 'An unknown error occurred');
-    }
-  }
-};
-
+  };
 
   const handleFileSelect = (file: string) => {
     if (selectedEspFiles.includes(file)) {
@@ -164,7 +187,9 @@ const downloadAndUploadFileToEsp = async () => {
   const deleteSelectedFiles = () => {
     Alert.alert(
       'Delete Files',
-      `Are you sure you want to delete these files: ${selectedEspFiles.join(', ')}?`,
+      `Are you sure you want to delete these files: ${selectedEspFiles.join(
+        ', ',
+      )}?`,
       [
         {
           text: 'Cancel',
@@ -175,9 +200,14 @@ const downloadAndUploadFileToEsp = async () => {
           onPress: async () => {
             try {
               for (const file of selectedEspFiles) {
-                await fetch(`http://${default_ip}/delete?name=${encodeURIComponent(file)}`, {
-                  method: 'DELETE',
-                });
+                await fetch(
+                  `http://${default_ip}/delete?name=${encodeURIComponent(
+                    file,
+                  )}`,
+                  {
+                    method: 'DELETE',
+                  },
+                );
               }
               fetchEspFiles(); // Refresh the file list after deletion
               setSelectedEspFiles([]); // Clear selection
@@ -212,7 +242,6 @@ const downloadAndUploadFileToEsp = async () => {
           <View style={styles.container}>
             <Text style={styles.title}>Welcome, User!</Text>
 
-
             <View style={styles.submenuContainer}>
               <Text style={styles.subtitle}>Files on ESP32</Text>
               <Button title="Refresh ESP Files" onPress={fetchEspFiles} />
@@ -222,20 +251,21 @@ const downloadAndUploadFileToEsp = async () => {
                     <TouchableOpacity
                       key={index}
                       onLongPress={() => handleLongPress(file)}
-                      onPress={() => handleFileSelect(file)}
-                    >
+                      onPress={() => handleFileSelect(file)}>
                       <Text
                         style={[
                           styles.fileItem,
-                          selectedEspFiles.includes(file) && styles.selectedFileItem,
-                        ]}
-                      >
+                          selectedEspFiles.includes(file) &&
+                            styles.selectedFileItem,
+                        ]}>
                         {truncateFilename(file, 25)}
                       </Text>
                     </TouchableOpacity>
                   ))
                 ) : (
-                  <Text style={styles.noFilesText}>No files found on ESP32</Text>
+                  <Text style={styles.noFilesText}>
+                    No files found on ESP32
+                  </Text>
                 )}
               </ScrollView>
               <Button
@@ -254,20 +284,21 @@ const downloadAndUploadFileToEsp = async () => {
                     <TouchableOpacity
                       key={index}
                       onLongPress={() => handleLongPress(file)}
-                      onPress={() => handleServerFileSelect(file)}
-                    >
+                      onPress={() => handleServerFileSelect(file)}>
                       <Text
                         style={[
                           styles.fileItem,
-                          selectedServerFile === file && styles.selectedFileItem,
-                        ]}
-                      >
+                          selectedServerFile === file &&
+                            styles.selectedFileItem,
+                        ]}>
                         {truncateFilename(file, 25)}
                       </Text>
                     </TouchableOpacity>
                   ))
                 ) : (
-                  <Text style={styles.noFilesText}>No files found on Server</Text>
+                  <Text style={styles.noFilesText}>
+                    No files found on Server
+                  </Text>
                 )}
               </ScrollView>
               <Button
