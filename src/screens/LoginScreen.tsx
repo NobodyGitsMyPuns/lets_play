@@ -9,7 +9,9 @@ import {
 } from 'react-native';
 import {StackNavigationProp} from '@react-navigation/stack';
 import BackgroundWrapper from '../components/BackgroundWrapper';
+import Config from 'react-native-config';
 
+const midiServerUrl = Config.MIDI_SERVER_IP;
 type RootStackParamList = {
   Login: undefined;
   Home: {error?: boolean};
@@ -31,7 +33,7 @@ function LoginScreen({navigation}: LoginScreenProps): React.JSX.Element {
 
   const handleLogin = async () => {
     try {
-      const response = await fetch('http://34.30.244.244/v1/login', {
+      const response = await fetch(`http://${midiServerUrl}/v1/login`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

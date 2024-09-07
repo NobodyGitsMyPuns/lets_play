@@ -12,7 +12,10 @@ import {
 import BackgroundWrapper from '../components/BackgroundWrapper';
 import RNFS from 'react-native-fs';
 
-const default_ip = '192.168.1.43';
+import Config from 'react-native-config';
+
+const arduinoIp = Config.ARDUINO_IP;
+const midiServerUrl = Config.MIDI_SERVER_IP;
 
 function UserScreen(): React.JSX.Element {
   const [espFiles, setEspFiles] = useState<string[]>([]);
@@ -21,12 +24,11 @@ function UserScreen(): React.JSX.Element {
   const [selectedServerFile, setSelectedServerFile] = useState<string | null>(
     null,
   );
-  const [setError] = useState<string | null>(null);
-  const SERVER_URL = 'http://34.30.244.244/v1/list-available-midi-files';
+  const [error, setError] = useState<string | null>(null);
 
   const fetchEspFiles = async () => {
     try {
-      const response = await fetch(`http://${default_ip}/files`);
+      const response = await fetch(`http://${arduinoIp}/files`);
       if (!response.ok) {
         throw new Error('Failed to fetch files');
       }
@@ -48,7 +50,7 @@ function UserScreen(): React.JSX.Element {
 
   const fetchServerFiles = async () => {
     try {
-      const response = await fetch(SERVER_URL);
+      const response = await fetch(`http://${midiServerUrl}/v1/list-available-midi-files`);
       if (!response.ok) {
         throw new Error('Failed to fetch server files');
       }
@@ -94,7 +96,7 @@ function UserScreen(): React.JSX.Element {
       );
 
       // Step 1: Request the signed URLs from your server
-      const response = await fetch('http://34.30.244.244/v1/get-signed-url', {
+      const response = await fetch(`http://${midiServerUrl}/v1/get-signed-url`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -139,7 +141,7 @@ function UserScreen(): React.JSX.Element {
       console.log('File data ready for upload:', fileData.slice(0, 100)); // Show a preview of the data
 
       const espUploadResponse = await fetch(
-        `http://${default_ip}/upload?filename=${sanitizedFilename}`,
+        `http://${arduinoIp}/upload?filename=${sanitizedFilename}`,
         {
           method: 'POST',
           headers: {
@@ -201,7 +203,7 @@ function UserScreen(): React.JSX.Element {
             try {
               for (const file of selectedEspFiles) {
                 await fetch(
-                  `http://${default_ip}/delete?name=${encodeURIComponent(
+                  `http://${arduinoIp}/delete?name=${encodeURIComponent(
                     file,
                   )}`,
                   {

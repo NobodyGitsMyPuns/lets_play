@@ -26,6 +26,7 @@ install:
 .PHONY: run-ios
 run-ios:
 	@echo "Running the iOS app..."
+	export ENVFILE=.env.development
 	npx react-native run-ios
 
 .PHONY: deploy
@@ -36,13 +37,13 @@ deploy:
 
 .PHONY: pod-install
 pod-install:
-	@echo "Installing CocoaPods dependencies..."
+	@echo "Installing CecocoaPods dependencies..."
 	cd $(IOS_DIR) && pod install && cd ..
 
-.PHONY: rebuild
-rebuild: clean install
-	@echo "Rebuilding the project from scratch..."
-	$(MAKE) run-ios
+.PHONY: run-ios
+run-ios:
+	@echo "Running the iOS app with .env.development..."
+	ENVFILE=.env.development npx react-native run-ios
 
 .PHONY: reinstall-pod
 reinstall-pod: 
@@ -76,7 +77,7 @@ reset:
 	@echo "Resetting Metro bundler cache..."
 	npx react-native start --reset-cache
 
-.PHONY: test
+.PHONY: test       
 test:
 	@echo "Running tests..."
 	npm test

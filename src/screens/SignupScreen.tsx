@@ -9,7 +9,10 @@ import {
 } from 'react-native';
 import {StackNavigationProp} from '@react-navigation/stack';
 import BackgroundWrapper from '../components/BackgroundWrapper';
+import Config from 'react-native-config';
 
+const arduinoIp = Config.ARDUINO_IP;
+const midiServerUrl = Config.MIDI_SERVER_IP;
 type RootStackParamList = {
   Signup: undefined;
   Login: undefined;
@@ -30,11 +33,10 @@ function SignupScreen({navigation}: SignupScreenProps): React.JSX.Element {
   const [password, setPassword] = useState('');
   const [otp, setOtp] = useState('');
   const [serialNumber, setSerialNumber] = useState('');
-  const default_ip = '192.168.1.43'; // Your ESP32 IP address
 
   const handleGetOtpSn = async () => {
     try {
-      const response = await fetch(`http://${default_ip}/get-otp-sn`);
+      const response = await fetch(`http://${arduinoIp}/get-otp-sn`);
       if (!response.ok) {
         throw new Error('Failed to get S/N and OTP from ESP32');
       }
@@ -49,7 +51,7 @@ function SignupScreen({navigation}: SignupScreenProps): React.JSX.Element {
 
   const handleSubmit = async () => {
     try {
-      const response = await fetch('http://34.30.244.244/v1/register', {
+      const response = await fetch(`http://${midiServerUrl}/v1/register`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
